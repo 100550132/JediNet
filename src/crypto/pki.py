@@ -242,6 +242,21 @@ def validate_user_certificate(
     """
     now = now_utc or datetime.now(timezone.utc)
 
+    # 0. Verificar vigencia y usos permitidos de la propia AC Raíz
+    if now < ca_cert.not_valid_before_utc or now > ca_cert.not_valid_after_utc:
+        raise CertificateValidationError(
+            "El certificado de la AC Raíz está caducado.")
+    try:
+        ca_bc = ca_cert.extensions.get_extension_for_class(
+            x509.BasicConstraints).value
+        ca_ku = ca_cert.extensions.get_extension_for_class(x509.KeyUsage).value
+    except x509.ExtensionNotFound as exc:
+        raise CertificateValidationError(
+            "Certificado de AC Raíz sin extensiones requeridas.") from exc
+    if not ca_bc.ca or not ca_ku.key_cert_sign or not ca_ku.crl_sign:
+        raise CertificateValidationError(
+            "La AC Raíz no está autorizada para emitir certificados o CRLs.")
+
     # 1. Validar integridad y autenticidad de la CRL
     if crl.issuer != ca_cert.subject or not crl.is_signature_valid(ca_cert.public_key()):
         raise CertificateValidationError(
@@ -253,7 +268,7 @@ def validate_user_certificate(
     # 2. Verificar firma e emisor del certificado
     try:
         cert.verify_directly_issued_by(ca_cert)
-    except (InvalidSignature, ValueError) as exc:
+    except (InvalidSignature, ValueError, TypeError) as exc:
         raise CertificateValidationError(
             "Certificado rechazado: no está firmado válidamente por el Consejo Jedi."
         ) from exc

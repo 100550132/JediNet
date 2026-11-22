@@ -103,3 +103,32 @@ def verify_password(password: str, stored_record: dict[str, Any]) -> bool:
         return True
     except (InvalidKey, KeyError, TypeError, ValueError):
         return False
+
+def generate_salt() -> bytes:
+    """Genera una sal aleatoria criptográficamente segura de 128 bits."""
+    return os.urandom(SALT_BYTES)
+
+def derive_key_from_password(
+    password: str,
+    salt: bytes,
+    key_bytes: int = HASH_BYTES,
+    iterations: int = PBKDF2_ITERATIONS,
+) -> bytes:
+    """
+    Deriva una clave criptográfica simétrica/HMAC a partir de una contraseña y una sal
+    mediante PBKDF2-HMAC-SHA256, evitando almacenar claves secretas en claro en disco.
+    """
+    if not isinstance(password, str) or not password:
+        raise ValueError("La contraseña para derivar la clave no puede estar vacía.")
+    if not isinstance(salt, bytes) or len(salt) < SALT_BYTES:
+        raise ValueError(f"La sal debe tener al menos {SALT_BYTES} bytes.")
+    if key_bytes <= 0 or iterations <= 0:
+        raise ValueError("La longitud de clave y las iteraciones deben ser positivas.")
+
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=key_bytes,
+        salt=salt,
+        iterations=iterations,
+    )
+    return kdf.derive(password.encode("utf-8"))
