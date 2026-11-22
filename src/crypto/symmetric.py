@@ -160,4 +160,5 @@ def verify_hmac_sha256(key: bytes, data: bytes, expected_mac_b64: str) -> None:
         mac.verify(expected_mac)
     except InvalidSignature as exc:
         raise IntegrityVerificationError(
-            "Verificación HMAC-SHA256 fallida: los datos o la etiqueta MAC han sido manipulados.") from exc
+            "Verificación HMAC-SHA256 fallida: los datos o la etiqueta MAC han sido manipulados."
+        ) from exc
